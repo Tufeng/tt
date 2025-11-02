@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok库存调整单系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-draft {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        .status-confirmed {
+            background-color: #e6f7ff;
+            color: #1890ff;
+        }
+        .status-synced {
+            background-color: #e6f7e6;
+            color: #52c41a;
+        }
+        .status-error {
+            background-color: #fff2f0;
+            color: #ff4d4f;
+        }
+        .inventory-change-positive {
+            color: #52c41a;
+        }
+        .inventory-change-negative {
+            color: #ff4d4f;
+        }
+        .sku-selector {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- 列表页 -->
+        <div id="list-page">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>TikTok库存调整单</h2>
+                <button class="btn btn-primary" onclick="showDetailPage('new')">
+                    <i class="bi bi-plus-lg"></i> 新建调整单
+                </button>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">单据编号</label>
+                            <input type="text" class="form-control" placeholder="搜索单据编号">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">状态</label>
+                            <select class="form-select">
+                                <option value="">全部</option>
+                                <option value="draft">草稿</option>
+                                <option value="confirmed">已确认</option>
+                                <option value="synced">已同步</option>
+                                <option value="error">同步失败</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">仓库</label>
+                            <select class="form-select">
+                                <option value="">全部仓库</option>
+                                <option value="warehouse1">深圳仓</option>
+                                <option value="warehouse2">上海仓</option>
+                                <option value="warehouse3">海外仓</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">日期范围</label>
+                            <input type="date" class="form-control">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-primary w-100">搜索</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>单据编号</th>
+                                    <th>仓库</th>
+                                    <th>调整数量</th>
+                                    <th>涉及SKU</th>
+                                    <th>状态</th>
+                                    <th>创建人</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>TK-ADJ-20231125-001</td>
+                                    <td>深圳仓</td>
+                                    <td>
+                                        <span class="inventory-change-positive">+15</span> / 
+                                        <span class="inventory-change-negative">-8</span>
+                                    </td>
+                                    <td>5</td>
+                                    <td><span class="status-badge status-synced">已同步</span></td>
+                                    <td>张三</td>
+                                    <td>2023-11-25 14:30</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showDetailPage('view', 'TK-ADJ-20231125-001')">查看</button>
+                                        <button class="btn btn-sm btn-outline-success" disabled>
+                                            <i class="bi bi-check-lg"></i> 已推送
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>TK-ADJ-20231124-003</td>
+                                    <td>上海仓</td>
+                                    <td>
+                                        <span class="inventory-change-positive">+32</span> / 
+                                        <span class="inventory-change-negative">-5</span>
+                                    </td>
+                                    <td>8</td>
+                                    <td><span class="status-badge status-confirmed">已确认</span></td>
+                                    <td>李四</td>
+                                    <td>2023-11-24 10:15</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showDetailPage('view', 'TK-ADJ-20231124-003')">查看</button>
+                                        <button class="btn btn-sm btn-success" onclick="syncToTikTok('TK-ADJ-20231124-003')">
+                                            <i class="bi bi-send"></i> 推送TikTok
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>TK-ADJ-20231123-002</td>
+                                    <td>海外仓</td>
+                                    <td>
+                                        <span class="inventory-change-positive">+12</span> / 
+                                        <span class="inventory-change-negative">-3</span>
+                                    </td>
+                                    <td>3</td>
+                                    <td><span class="status-badge status-error">同步失败</span></td>
+                                    <td>王五</td>
+                                    <td>2023-11-23 16:45</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showDetailPage('view', 'TK-ADJ-20231123-002')">查看</button>
+                                        <button class="btn btn-sm btn-danger" onclick="syncToTikTok('TK-ADJ-20231123-002')">
+                                            <i class="bi bi-exclamation-triangle"></i> 重新推送
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>TK-ADJ-20231122-001</td>
+                                    <td>深圳仓</td>
+                                    <td>
+                                        <span class="inventory-change-positive">+5</span> / 
+                                        <span class="inventory-change-negative">-2</span>
+                                    </td>
+                                    <td>2</td>
+                                    <td><span class="status-badge status-draft">草稿</span></td>
+                                    <td>张三</td>
+                                    <td>2023-11-22 09:20</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showDetailPage('edit', 'TK-ADJ-20231122-001')">编辑</button>
+                                        <button class="btn btn-sm btn-outline-secondary" disabled>
+                                            推送TikTok
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 详情页 (默认隐藏) -->
+        <div id="detail-page" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 id="detail-title">新建库存调整单</h2>
+                <button class="btn btn-outline-secondary" onclick="showListPage()">
+                    <i class="bi bi-arrow-left"></i> 返回列表
+                </button>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">单据编号</label>
+                            <input type="text" class="form-control" id="adjustment-code" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">调整日期</label>
+                            <input type="date" class="form-control" id="adjustment-date" value="2023-11-25">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">仓库*</label>
+                            <select class="form-select" id="warehouse-select" required>
+                                <option value="">请选择仓库</option>
+                                <option value="warehouse1">深圳仓</option>
+                                <option value="warehouse2">上海仓</option>
+                                <option value="warehouse3">海外仓</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">负责人*</label>
+                            <input type="text" class="form-control" id="operator" value="张三" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">调整原因*</label>
+                            <select class="form-select" id="adjustment-reason" required>
+                                <option value="">请选择调整原因</option>
+                                <option value="inventory_check">盘点差异</option>
+                                <option value="damaged">损坏报损</option>
+                                <option value="gift">赠品调整</option>
+                                <option value="system_error">系统误差</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">备注</label>
+                            <input type="text" class="form-control" id="adjustment-remark" placeholder="可选备注信息">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">调整商品明细</h5>
+                    <button class="btn btn-sm btn-primary" id="add-sku-btn">
+                        <i class="bi bi-plus-lg"></i> 添加SKU
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="sku-selector-container" style="display: none;">
+                        <div class="card sku-selector mb-3">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">选择SKU*</label>
+                                        <select class="form-select" id="sku-select">
+                                            <option value="">请选择SKU</option>
+                                            <option value="sku1">SKU001 - 无线蓝牙耳机</option>
+                                            <option value="sku2">SKU002 - 智能手表</option>
+                                            <option value="sku3">SKU003 - 手机支架</option>
+                                            <option value="sku4">SKU004 - 充电宝</option>
+                                            <option value="sku5">SKU005 - 数据线</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">选择店铺*</label>
+                                        <select class="form-select" id="shop-select">
+                                            <option value="">请选择店铺</option>
+                                            <option value="shop1">TikTok店铺A</option>
+                                            <option value="shop2">TikTok店铺B</option>
+                                            <option value="shop3">TikTok店铺C</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-secondary me-2" id="cancel-sku-select">取消</button>
+                                    <button class="btn btn-primary" id="confirm-sku-select">确认</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table" id="sku-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>SKU ID</th>
+                                    <th>商品名称</th>
+                                    <th>店铺</th>
+                                    <th>当前库存</th>
+                                    <th>7天销量</th>
+                                    <th>调整数量</th>
+                                    <th>调整后库存</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 示例数据 -->
+                                <tr>
+                                    <td>SKU001</td>
+                                    <td>无线蓝牙耳机</td>
+                                    <td>TikTok店铺A</td>
+                                    <td>125</td>
+                                    <td>32</td>
+                                    <td>
+                                        <input type="number" class="form-control change-quantity" value="10" min="-124" max="9999">
+                                    </td>
+                                    <td>135</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>SKU002</td>
+                                    <td>智能手表</td>
+                                    <td>TikTok店铺B</td>
+                                    <td>68</td>
+                                    <td>15</td>
+                                    <td>
+                                        <input type="number" class="form-control change-quantity" value="-5" min="-67" max="9999">
+                                    </td>
+                                    <td>63</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <div>
+                    <button class="btn btn-outline-secondary" onclick="showListPage()">
+                        <i class="bi bi-x-lg"></i> 取消
+                    </button>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary me-2" id="save-draft-btn">
+                        <i class="bi bi-save"></i> 保存草稿
+                    </button>
+                    <button class="btn btn-primary" id="confirm-adjustment-btn">
+                        <i class="bi bi-check-lg"></i> 确认调整
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认调整</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>以下SKU的调整数量为0，确认要继续吗？</p>
+                    <ul id="zero-change-items">
+                        <li>SKU003 - 手机支架</li>
+                        <li>SKU005 - 数据线</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirm-save-btn">确认保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推送结果提示 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast align-items-center text-white bg-success" id="sync-success-toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    库存调整已成功同步到TikTok！
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+        
+        <div class="toast align-items-center text-white bg-danger" id="sync-error-toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    同步到TikTok失败，请重试或联系技术支持！
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 页面切换函数
+        function showListPage() {
+            document.getElementById('list-page').style.display = 'block';
+            document.getElementById('detail-page').style.display = 'none';
+        }
+        
+        function showDetailPage(mode, code) {
+            document.getElementById('list-page').style.display = 'none';
+            document.getElementById('detail-page').style.display = 'block';
+            
+            if (mode === 'new') {
+                document.getElementById('detail-title').textContent = '新建库存调整单';
+                document.getElementById('adjustment-code').value = 'TK-ADJ-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-001';
+                document.getElementById('confirm-adjustment-btn').style.display = 'inline-block';
+            } else if (mode === 'edit') {
+                document.getElementById('detail-title').textContent = '编辑库存调整单';
+                document.getElementById('adjustment-code').value = code;
+                document.getElementById('confirm-adjustment-btn').style.display = 'inline-block';
+            } else if (mode === 'view') {
+                document.getElementById('detail-title').textContent = '查看库存调整单';
+                document.getElementById('adjustment-code').value = code;
+                document.getElementById('confirm-adjustment-btn').style.display = 'none';
+                // 禁用所有输入字段
+                const inputs = document.querySelectorAll('#detail-page input, #detail-page select, #detail-page button');
+                inputs.forEach(input => {
+                    if (input.id !== 'save-draft-btn' && !input.onclick) {
+                        input.disabled = true;
+                    }
+                });
+            }
+        }
+        
+        // SKU选择逻辑
+        document.getElementById('add-sku-btn').addEventListener('click', function() {
+            document.getElementById('sku-selector-container').style.display = 'block';
+        });
+        
+        document.getElementById('cancel-sku-select').addEventListener('click', function() {
+            document.getElementById('sku-selector-container').style.display = 'none';
+        });
+        
+        document.getElementById('confirm-sku-select').addEventListener('click', function() {
+            const skuSelect = document.getElementById('sku-select');
+            const shopSelect = document.getElementById('shop-select');
+            
+            if (!skuSelect.value || !shopSelect.value) {
+                alert('请选择SKU和店铺');
+                return;
+            }
+            
+            // 这里应该添加实际的SKU和店铺数据获取逻辑
+            // 暂时添加示例数据
+            const tableBody = document.querySelector('#sku-detail-table tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${skuSelect.value}</td>
+                <td>${skuSelect.options[skuSelect.selectedIndex].text.split(' - ')[1]}</td>
+                <td>${shopSelect.options[shopSelect.selectedIndex].text}</td>
+                <td>100</td>
+                <td>25</td>
+                <td>
+                    <input type="number" class="form-control change-quantity" value="0" min="-99" max="9999">
+                </td>
+                <td>100</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(newRow);
+            
+            // 重置选择器
+            skuSelect.value = '';
+            shopSelect.value = '';
+            document.getElementById('sku-selector-container').style.display = 'none';
+            
+            // 添加删除行的事件监听
+            newRow.querySelector('button').addEventListener('click', function() {
+                tableBody.removeChild(newRow);
+            });
+            
+            // 添加库存变更计算
+            newRow.querySelector('.change-quantity').addEventListener('change', function() {
+                const currentStock = parseInt(newRow.cells[3].textContent);
+                const changeValue = parseInt(this.value) || 0;
+                const newStock = currentStock + changeValue;
+                
+                if (newStock < 0) {
+                    alert('调整后库存不能为负数');
+                    this.value = -currentStock;
+                    newRow.cells[6].textContent = '0';
+                } else {
+                    newRow.cells[6].textContent = newStock.toString();
+                }
+            });
+        });
+        
+        // 库存变更计算
+        document.addEventListener('DOMContentLoaded', function() {
+            const quantityInputs = document.querySelectorAll('.change-quantity');
+            quantityInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    const row = this.closest('tr');
+                    const currentStock = parseInt(row.cells[3].textContent);
+                    const changeValue = parseInt(this.value) || 0;
+                    const newStock = currentStock + changeValue;
+                    
+                    if (newStock < 0) {
+                        alert('调整后库存不能为负数');
+                        this.value = -currentStock;
+                        row.cells[6].textContent = '0';
+                    } else {
+                        row.cells[6].textContent = newStock.toString();
+                    }
+                });
+            });
+            
+            // 删除行事件
+            document.querySelectorAll('#sku-detail-table button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const row = this.closest('tr');
+                    row.parentNode.removeChild(row);
+                });
+            });
+        });
+        
+        // 确认保存逻辑
+        document.getElementById('confirm-adjustment-btn').addEventListener('click', function() {
+            // 检查是否有调整数量为0的SKU
+            const zeroChangeItems = [];
+            const rows = document.querySelectorAll('#sku-detail-table tbody tr');
+            
+            rows.forEach(row => {
+                const changeValue = parseInt(row.querySelector('.change-quantity').value) || 0;
+                if (changeValue === 0) {
+                    const skuName = row.cells[1].textContent;
+                    zeroChangeItems.push(skuName);
+                }
+            });
+            
+            if (zeroChangeItems.length > 0) {
+                // 显示确认弹窗
+                const zeroList = document.getElementById('zero-change-items');
+                zeroList.innerHTML = '';
+                zeroChangeItems.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    zeroList.appendChild(li);
+                });
+                
+                const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+                confirmModal.show();
+            } else {
+                // 直接保存
+                saveAdjustment();
+            }
+        });
+        
+        document.getElementById('confirm-save-btn').addEventListener('click', function() {
+            saveAdjustment();
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            confirmModal.hide();
+        });
+        
+        function saveAdjustment() {
+            // 这里应该添加实际的保存逻辑
+            alert('库存调整已保存！');
+            showListPage();
+        }
+        
+        // 同步到TikTok
+        function syncToTikTok(code) {
+            // 模拟API调用
+            const success = Math.random() > 0.3; // 70%成功率
+            
+            if (success) {
+                const toast = new bootstrap.Toast(document.getElementById('sync-success-toast'));
+                toast.show();
+                
+                // 更新列表中的状态
+                // 实际应用中应该重新加载数据或更新对应行的状态
+            } else {
+                const toast = new bootstrap.Toast(document.getElementById('sync-error-toast'));
+                toast.show();
+            }
+        }
+    </script>
+</body>
+</html>
